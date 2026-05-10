@@ -32,3 +32,146 @@ For production environments, you should use `fastapi run` instead, as it is opti
 * **HTML Responses:** You can return HTML strings instead of JSON by importing `HTMLResponse` from `fastapi.responses` and adding `response_class=HTMLResponse` to your route decorator [11].
 * **Stacking Decorators:** You can map multiple URL paths to the exact same function by stacking multiple decorators (such as `@app.get("/")` and `@app.get("/post")`) on top of the function [12, 13].
 * **Hiding Routes from Documentation:** To keep your API documentation clean, you can hide HTML routes meant for human browsing by adding `include_in_schema=False` to the route's decorator [13, 14].
+
+
+# Comprehensive Guide to FastAPI (Part 2): HTML Frontend & Jinja2 Templates
+
+This guide explains how to use Jinja2 templates in FastAPI to serve complete HTML pages to users, while keeping your JSON API endpoints intact for programmatic access,. If you installed FastAPI using the "standard" extras (`fastapi[standard]`), Jinja2 is already included automatically.
+
+## 1. Setting up Jinja2 Templates
+
+To begin, you need to create a directory named `templates` inside your project folder. Next, update your `main.py` file to configure FastAPI to find and use these templates. You must import `Request` (which is required by Jinja2) and `Jinja2Templates`.
+
+```python
+from fastapi import FastAPI, Request
+from fastapi.templating import Jinja2Templates
+
+app = FastAPI()
+
+# Configure the templates directory
+templates = Jinja2Templates(directory="templates")
+```
+This creates a template object that tells FastAPI to look inside your `templates` directory for your HTML files.
+
+## 2. Rendering a Template Response and Passing Data
+
+To serve an HTML template instead of raw strings or JSON data, your route function must be updated. First, the function must accept a `request` parameter of type `Request`. You then return a `TemplateResponse` specifying the request, the name of the template, and a context dictionary containing the dynamic data you want to display on the HTML page,.
+
+```python
+# Dummy data for demonstration
+posts = [
+    {"title": "First Post", "content": "This is the first post"},
+    {"title": "Second Post", "content": "This is the second post"}
+]
+
+@app.get("/", include_in_schema=False, name="home")
+@app.get("/post", include_in_schema=False, name="post")
+def home(request: Request):
+    # Pass 'request', the template name, and context variables
+    return templates.TemplateResponse(
+        request=request, 
+        name="home.html", 
+        context={"posts": posts, "title": "Home"}
+    )
+```
+By keeping `include_in_schema=False` on the decorator, these HTML-rendering routes remain hidden from your automatic API documentation (like `/docs`), ensuring a clean separation between your human-facing web pages and your programmatic JSON API endpoints,.
+
+## 3. Jinja2 Templating Syntax
+
+Inside your HTML templates, you can use Jinja2 syntax to dynamically render the data passed via the context dictionary.
+
+*   **Variables:** Use double curly braces `{{ }}` to display variables. Jinja2 allows you to use dot notation (e.g., `post.title`) to access dictionary keys cleanly.
+*   **For Loops:** Use `{% for item in list %}` and `{% endfor %}` to iterate over lists of data, like displaying multiple blog posts.
+*   **Conditionals:** Use `{% if %}`, `{% else %}`, and `{% endif %}` to conditionally render blocks, such as setting a default page title if none was passed in,.
+
+```html
+<!-- Example of a conditional block -->
+<title>
+    {% if title %}
+        FastAPI Blog - {{ title }}
+    {% else %}
+        FastAPI Blog
+    {% endif %}
+</title>
+
+<!-- Example of a loop and variables -->
+{% for post in posts %}
+    <h2>{{ post.title }}</h2>
+    <p>{{ post.content }}</p>
+{% endfor %}
+```
+
+## 4. Template Inheritance
+
+Template inheritance prevents you from duplicating boilerplate HTML structure (like headers, navigation bars, CSS links, and footers) across every page. You can create a parent template, typically called `layout.html`, which defines the common structure and specifies placeholder blocks.
+
+**Parent Template (`templates/layout.html`):**
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FastAPI Blog</title>
+</head>
+<body>
+    <nav>
+        <!-- Navigation bar content here -->
+    </nav>
+    
+    <main>
+        <!-- Define a block that child templates will override -->
+        {% block content %}{% endblock content %}
+    </main>
+</body>
+</html>
+```
+
+Child templates then extend this layout and only provide the specific content needed for their respective pages.
+
+**Child Template (`templates/home.html`):**
+```html
+<!-- Extend the parent layout -->
+{% extends "layout.html" %}
+
+<!-- Fill in the defined block -->
+{% block content %}
+    {% for post in posts %}
+        <article>
+            <h2>{{ post.title }}</h2>
+            <p>{{ post.content }}</p>
+        </article>
+    {% endfor %}
+{% endblock content %}
+```
+
+## 5. Serving Static Files (CSS, JS, Images)
+
+To add CSS styling (like Bootstrap), JavaScript, icons, and images, you must configure FastAPI to serve static files,. Create a directory named `static` in your project root. Then, mount this directory to your application in `main.py` using the `StaticFiles` module,.
+
+```python
+from fastapi.staticfiles import StaticFiles
+
+# Mount the static directory
+app.mount("/static", StaticFiles(directory="static"), name="static")
+```
+The URL path `"/static"` makes any file placed in the `static` directory accessible in the browser under that path (e.g., `"/static/css/main.css"`).
+
+## 6. Using `url_for` for Dynamic Routing
+
+Instead of hardcoding URLs for navigation links or static file paths, you should use the `url_for` function directly inside your templates,. This best practice ensures that if your route paths or static mount paths ever change in the future, the templates will automatically update.
+
+**For Static Files:** Use `url_for`, pass the mount name (`'static'`), and specify the relative path to the file,.
+```html
+<!-- dynamically linking a CSS stylesheet -->
+<link rel="stylesheet" href="{{ url_for('static', path='css/main.css') }}">
+
+<!-- dynamically linking an image -->
+<img src="{{ url_for('static', path='profile_pics/default.jpg') }}">
+```
+
+**For Route Navigation:** Pass the name of the Python route function to `url_for`.
+```html
+<a href="{{ url_for('home') }}">Home Page</a>
+```
+
+*Important Note on Stacked Decorators:* If you map multiple decorators to the exact same function (e.g., `@app.get("/")` and `@app.get("/post")` on the `home` function), `url_for` might default to the wrong route name. To fix this, provide an explicit `name` argument to each decorator (e.g., `@app.get("/", name="home")` and `@app.get("/post", name="post")`). This guarantees that `url_for` routes users to the precise URL intended,.
+```
