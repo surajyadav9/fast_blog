@@ -6,7 +6,7 @@ SQLALCHEMY_DATABASE_URL = "sqlite:///./blog.db"
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     connect_args={
-        "check_same_threa": False
+        "check_same_thread": False
     },  # sqlite specific for utilizing single thread
 )
 
