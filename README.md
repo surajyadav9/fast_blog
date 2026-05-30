@@ -429,4 +429,172 @@ One of the largest benefits of Pydantic is how it enhances both safety and docum
 ## 5. The Need for a Database
 
 While the API and templates now work cleanly together and share the same data, the application currently stores posts in a Python list in memory. This means any new posts created via the POST endpoint will disappear as soon as the development server restarts. Because of this, transitioning the app to use a real database with persistent storage (like SQLAlchemy) is the necessary next step.
+
+
+
+<br><br>
+# Comprehensive Guide to FastAPI (Part 5): Adding a SQLite Database with SQLAlchemy
+
+Up until now, the application stored data in a standard Python list, which resets every time the server restarts. This tutorial transitions the app to a real database so data persists.
+
+## 1. The Architecture: Why Three Separate Layers?
+
+When adding a database, the application is divided into three distinct layers:
+1.  **Database Models (SQLAlchemy):** Define how data is stored in the actual database tables.
+2.  **Pydantic Schemas:** Define the structure of the JSON data your API receives and returns.
+3.  **API Routes (FastAPI):** The endpoints that handle the web requests.
+
+**Why not use one single model for both?** 
+While libraries like SQLModel combine these layers, keeping them separate is the industry standard. It gives you precise control over what a user is allowed to send or see. For example, a user provides a password when creating an account (Pydantic Schema), but you don't return that password in the API response, even though it lives in the database (SQLAlchemy Model). The flow works like this: ```Pydantic validates incoming requests -> SQLAlchemy stores/retrieves data -> Pydantic formats the final outgoing response```.
+
+## 2. Database Configuration (`database.py`)
+
+To interact with the database, the tutorial uses **SQLAlchemy** (a popular Python Object-Relational Mapper or ORM) and **SQLite** (a lightweight database built directly into Python). 
+
+```python
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, DeclarativeBase
+
+# 1. The Connection String
+SQLALCHEMY_DATABASE_URL = "sqlite:///./blog.db"
+
+# 2. The Engine
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+)
+
+# 3. The Session
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# 4. The Base Class
+class Base(DeclarativeBase):
+    pass
+
+# 5. Dependency Injection
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 ```
+
+**Tricky Logic Explained:**
+*   `check_same_thread=False`: SQLite normally only allows one thread to communicate with it at a time. FastAPI processes requests using multiple threads concurrently, so we must explicitly disable this SQLite restriction to prevent errors.
+*   `get_db()` and `yield`: This is a dependency function. Using `yield` turns it into a context manager. It hands a database session to a route, and the `finally` block ensures the session is safely closed and cleaned up after the route finishes responding, even if an error crashes the app.
+
+## 3. Creating SQLAlchemy Models (`models.py`)
+
+Models represent your database tables. We are adding a `User` model and updating the `Post` model to establish a relationship.
+
+```python
+from __future__ import annotations
+from sqlalchemy import ForeignKey, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from database import Base
+
+class User(Base):
+    __tablename__ = "users"
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(unique=True, nullable=False)
+    
+    # Establish a One-to-Many relationship with Post
+    posts: Mapped[list[Post]] = relationship(back_populates="author")
+
+class Post(Base):
+    __tablename__ = "posts"
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(100), nullable=False)
+    content: Mapped[str] = mapped_column(nullable=False)
+    
+    # Foreign Key linking this post to a specific user
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    
+    # Establish the Many-to-One relationship back to the User
+    author: Mapped[User] = relationship(back_populates="posts")
+```
+
+**Why Relationships?** By defining `ForeignKey` and `relationship`, SQLAlchemy will automatically handle SQL "JOIN" operations under the hood. If you fetch a post, you can instantly access the author's information by calling `post.author.username`. Setting `index=True` on the `user_id` acts like a textbook index, drastically speeding up queries when you search for all posts by a specific user.
+
+## 4. Updating Pydantic Schemas (`schemas.py`)
+
+Because our database now returns complex SQLAlchemy objects instead of simple Python dictionaries, our schemas need an update.
+
+```python
+from pydantic import BaseModel, ConfigDict
+
+class UserResponse(BaseModel):
+    id: int
+    username: str
+    email: str
+    
+    # Critical: Tells Pydantic to read from ORM objects, not just dictionaries
+    model_config = ConfigDict(from_attributes=True)
+
+class PostResponse(BaseModel):
+    id: int
+    title: str
+    content: str
+    
+    # Nesting the UserResponse schema inside the Post schema!
+    author: UserResponse 
+    
+    model_config = ConfigDict(from_attributes=True)
+```
+
+**The Magic of Nested Schemas:** Notice how `PostResponse` has an `author` field set to the `UserResponse` schema. When you fetch a post from the database, FastAPI automatically grabs the related user object via SQLAlchemy, validates it against the `UserResponse` schema, and embeds it as nested JSON inside your post response.
+
+## 5. Using the Database in Routes (`main.py`)
+
+To use the database inside an API endpoint, we inject the `get_db` dependency we created earlier.
+
+```python
+from fastapi import FastAPI, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from sqlalchemy import select
+import models, schemas
+from database import engine, get_db
+
+app = FastAPI()
+
+# Tell SQLAlchemy to automatically create the database tables file 
+models.Base.metadata.create_all(bind=engine)
+
+@app.post("/api/users", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED)
+def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    # 1. Create the SQLAlchemy model instance
+    new_user = models.User(username=user.username, email=user.email)
+    
+    # 2. Stage the new user to be added
+    db.add(new_user)
+    
+    # 3. Commit the transaction to the database
+    db.commit()
+    
+    # 4. Refresh the object to grab the auto-generated ID from the database
+    db.refresh(new_user)
+    
+    return new_user
+```
+The `db: Session = Depends(get_db)` parameter automatically provides a clean database session for every single request.
+
+## 6. Updating Templates
+
+Since `date_posted` is now a real `datetime` object instead of a basic string, we need to format it in the HTML templates so it is human-readable. Furthermore, we can use dot-notation to access the related user's information.
+
+```html
+<!-- Accessing the nested author relationship via dot notation -->
+<a href="{{ url_for('user_post', user_id=post.author.id) }}">
+    {{ post.author.username }}
+</a>
+
+<!-- Formatting the datetime object using Python's strftime -->
+<small>{{ post.date_posted.strftime('%B %d, %Y') }}</small>
+```
+The API continues to return the raw, standardized ISO format data (ideal for computers), while the template formats it nicely using `strftime` (ideal for human reading).
+```
+
+Does this setup make sense, or would you like to review how to use this database to update or delete posts (the PUT and DELETE operations) next?
