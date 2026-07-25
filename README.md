@@ -1,6 +1,10 @@
 # Comprehensive Guide to FastAPI (Part 1): Setting up the project using UV
 
-This tutorial introduces [FastAPI](https://fastapi.tiangolo.com), a fast and modern Python web framework, and sets up a project that will eventually include a JSON REST API and an HTML frontend. 
+This tutorial introduces [FastAPI](https://fastapi.tiangolo.com), a fast and modern Python web framework, and sets up a project that will eventually include a JSON REST API and an HTML frontend.  
+
+FastAPI stands on the shoulders of giants:  
+- [Starlette](https://starlette.dev) for the web server parts.
+- [Pydantic](https://pydantic.dev/docs/) for the data validation parts.
 
 ## Important Setup Commands
 
