@@ -8,7 +8,7 @@ FastAPI stands on the shoulders of giants:
 
 ## Important Setup Commands
 
-The tutorial uses UV, a fast Python package manager, though traditional `pip` can also be used.
+The tutorial uses [uv](https://docs.astral.sh/uv/), a fast Python package manager, though traditional `pip` can also be used.
 
 ### 1. Creating the Project Folder
 To initialize a new project and navigate into it using UV, run the following commands:  
