@@ -1,37 +1,61 @@
-# Summary of Python FastAPI Tutorial (Part 1)
+# Comprehensive Guide to FastAPI (Part 1): Setting up the project using UV
 
-This tutorial introduces FastAPI, a fast and modern Python web framework, and sets up a project that will eventually include a JSON REST API and an HTML frontend [1, 2]. 
+This tutorial introduces [FastAPI](https://fastapi.tiangolo.com), a fast and modern Python web framework, and sets up a project that will eventually include a JSON REST API and an HTML frontend. 
 
 ## Important Setup Commands
 
-The tutorial uses UV, a fast Python package manager, though traditional `pip` can also be used [3].
+The tutorial uses UV, a fast Python package manager, though traditional `pip` can also be used.
 
 ### 1. Creating the Project Folder
-To initialize a new project and navigate into it using UV, run the following commands [3]:
-`uv init fastapi_blog`
+To initialize a new project and navigate into it using UV, run the following commands:  
+`uv init fastapi_blog`  
 `cd fastapi_blog`
 
-If you are not using UV, you can simply create a new directory and navigate into it manually [3].
+If you are not using UV, you can simply create a new directory and navigate into it manually.
 
 ### 2. Installing FastAPI
-It is recommended to install FastAPI with the "standard" extras, which bundles the FastAPI framework, the Uvicorn ASGI server, and the FastAPI CLI [4]. 
-- **Using UV:** `uv add "fastapi[standard]"` [4]
-- **Using pip:** `pip install "fastapi[standard]"` [4]
+It is recommended to install FastAPI with the "standard" extra, which bundles the FastAPI framework, the [`Uvicorn`](https://uvicorn.dev) ASGI (Asynchronous Server Gateway Interface) server/process-manager, and the FastAPI CLI. 
+- **Using UV:** `uv add "fastapi[standard]"`
+- **Using pip:** `pip install "fastapi[standard]"`
+
+#### Note - 
+When you install FastAPI with `uv add "fastapi[standard]"` it comes with the `standard` group of optional dependencies:  
+
+**Used by FastAPI:**  
+`fastapi-cli[standard]` - To provide the `fastapi` command. This includes `fastapi-cloud-cli`, which allows you to deploy your FastAPI application to FastAPI Cloud.
+
+**Used by Pydantic:**  
+[email-validator](https://github.com/JoshData/python-email-validator) - For email validation.
+
+**Used by Starlette:**  
+- [httpx2](https://www.python-httpx.org) - Required if you want to use the `TestClient`.
+- [jinja2](https://jinja.palletsprojects.com/en/stable/) - Required if you want to use `Jinja2Templates`.
+- [python-multipart]() - Required if you want to support _form parsing_, with `request.form()`.
+- [itsdangerous](https://itsdangerous.palletsprojects.com/en/stable/) - Required for SessionMiddleware support.
+
+**Used by Uvicorn:**  
+`uv add "uvicorn[standard]"`
+- [uvloop](https://github.com/MagicStack/uvloop) — Fast, drop-in replacement of the built-in asyncio event loop.
+- [httptools](https://github.com/MagicStack/httptools) — Python binding for the Node.js HTTP parser.
+- [websockets](https://websockets.readthedocs.io/en/stable) — WebSocket library for Python.
+- [watchfiles](https://github.com/samuelcolvin/watchfiles) — Simple, modern and high performance file watching and code reload in python.
+- [python-dotenv](https://github.com/theskumar/python-dotenv) — Reads key-value pairs from a .env file and adds them to the environment.
+- [PyYAML](https://github.com/yaml/pyyaml) — YAML parser and emitter for Python.
 
 ### 3. Running the Development Environment
-To start the server in development mode, which automatically reloads whenever you make changes to your code, use the following commands [5, 6]:
-- **Using UV:** `uv run fastapi dev main.py` [5]
-- **Using pip:** `fastapi dev main.py` [5]
+To start the server in development mode, which automatically reloads whenever you make changes to your code, use the following commands:
+- **Using UV:** `uv run fastapi dev main.py`
+- **Using pip:** `fastapi dev main.py`
 
-For production environments, you should use `fastapi run` instead, as it is optimized for performance rather than debugging [6].
+For production environments, you should use `fastapi run` instead, as it is optimized for performance rather than debugging.
 
 ## Key Concepts Covered
 
-* **Basic Routing:** You can define application routes using decorators like `@app.get("/")`, and FastAPI will automatically convert the returned Python dictionaries into JSON data [5, 7, 8].
-* **Automatic Documentation:** FastAPI automatically generates interactive API documentation via a Swagger UI at the `/docs` route and a more modern interface at `/redoc` [9, 10]. This lets you execute test requests directly in your browser or copy `curl` commands for terminal testing [9, 10].
-* **HTML Responses:** You can return HTML strings instead of JSON by importing `HTMLResponse` from `fastapi.responses` and adding `response_class=HTMLResponse` to your route decorator [11].
-* **Stacking Decorators:** You can map multiple URL paths to the exact same function by stacking multiple decorators (such as `@app.get("/")` and `@app.get("/post")`) on top of the function [12, 13].
-* **Hiding Routes from Documentation:** To keep your API documentation clean, you can hide HTML routes meant for human browsing by adding `include_in_schema=False` to the route's decorator [13, 14].
+* **Basic Routing:** You can define application routes using decorators like `@app.get("/")`, and FastAPI will automatically convert the returned Python dictionaries into JSON data.
+* **Automatic Documentation:** FastAPI automatically generates interactive API documentation via a Swagger UI at the `/docs` route and a more modern interface at `/redoc`. This lets you execute test requests directly in your browser or copy `curl` commands for terminal testing.
+* **HTML Responses:** You can return HTML strings instead of JSON by importing `HTMLResponse` from `fastapi.responses` and adding `response_class=HTMLResponse` to your route decorator.
+* **Stacking Decorators:** You can map multiple URL paths to the exact same function by stacking multiple decorators (such as `@app.get("/")` and `@app.get("/post")`) on top of the function.
+* **Hiding Routes from Documentation:** To keep your API documentation clean, you can hide HTML routes meant for human browsing by adding `include_in_schema=False` to the route's decorator.
 
 
 <br><br>
