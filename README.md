@@ -231,7 +231,7 @@ def get_post(post_id: int):
 
 Notice the `post_id: int` type hint in the function signature. This type hint is incredibly important because FastAPI uses it to automatically validate the input. 
 
-If a user navigates to a valid integer path like `/api/post/1`, it processes successfully. However, if they try to pass a string like `/api/post/hello`, FastAPI will automatically intercept the request and return a 422 (Unprocessable Entity) validation error detailing exactly what went wrong, without you having to write any validation logic. This automatic validation is also instantly reflected in the interactive API documentation.
+If a user navigates to a valid integer path like `/api/post/1`, it processes successfully. However, if they try to pass a string like `/api/post/hello`, FastAPI will automatically intercept the request and return a [422 (Unprocessable Entity)](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/422) validation error detailing exactly what went wrong, without you having to write any validation logic. This automatic validation is also instantly reflected in the interactive API documentation.
 
 ## 3. Raising HTTP Exceptions (404 Not Found)
 
