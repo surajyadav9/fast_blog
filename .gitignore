@@ -12,3 +12,9 @@ wheels/
 # DB
 *.db
 *.sqlite
+
+# Test
+test.py
+
+# macOS
+.DS_Store
